@@ -120,9 +120,9 @@ public:
     void ClearAppender() { log_appenders_.clear(); }
     const std::string& GetName() { return logger_name_; }
 private:
-    const std::string logger_name_ = "root"; 
-    Formatter::SharedPtr formatter_ = std::make_shared<Formatter>();
-    LogLevel::Level level_ = LogLevel::Level::DEBUG;
+    const std::string logger_name_ = "root"; // default name
+    Formatter::SharedPtr formatter_ = std::make_shared<Formatter>(); // default formatter
+    LogLevel::Level level_ = LogLevel::Level::DEBUG; // default level
     std::list<LogAppender::SharedPtr> log_appenders_;
 
 };

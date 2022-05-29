@@ -27,7 +27,7 @@ const std::string LogLevel::ToString(LogLevel::Level level) {
     }
 }
 
-Logger::Logger(const std::string& logger_name = "root", LogLevel::Level level = LogLevel::Level::DEBUG) : logger_name_(logger_name), level_(level){
+Logger::Logger(const std::string& logger_name, LogLevel::Level level) : logger_name_(logger_name), level_(level){
 
 }
 
