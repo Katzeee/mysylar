@@ -258,11 +258,11 @@ public:
 void Formatter::PatternParse() {
 
     //std::cout << "-----------start parse-----------" << std::endl;
-    // item: FormatItem 
-    // fmt: the parameter of FormatItem's Construct 
+    // item: FormatItem, the character after %
+    // fmt: the parameter of FormatItem's Constructor, which is the character in {} 
     // type: 0 for StringItem, 1 for others
     std::vector<std::tuple<std::string /*item*/, std::string /*format*/, int /*type*/> > pattern_parsed;
-    std::string content_str;
+    std::string content_str; // not the formatted string, just content
     for (auto str_left = pattern_.begin(); str_left != pattern_.end(); ) {
         // char, have not met escape
         if (*str_left != '%') {
@@ -271,18 +271,18 @@ void Formatter::PatternParse() {
             continue;
         }
         // met escape
-        if ((++str_left != pattern_.end()) && *str_left == '%') { // %%
+        if ((++str_left != pattern_.end()) && *str_left == '%') { // if %%
             content_str += *str_left; 
             continue;
         }
         auto str_right = str_left;
-        std::string item_str;
-        std::string item_format_str;
+        std::string item_str; // the string after % before {
+        std::string item_format_str; // the string in {}
         int parse_state = 0;    //0 means parsing item, 1 means parsing fmt
         while (str_left != pattern_.end()) {
             // parse item
             if (parse_state == 0) {
-                if (!isalpha(*str_right) && *str_right != '{' && *str_right != '}') { // this item has been parsed, get to next
+                if (!isalpha(*str_right) && *str_right != '{' && *str_right != '}') { // current item has been parsed, get to next
                     item_str = std::string(str_left, str_right);
                     str_left = str_right;
                     break;
@@ -300,7 +300,7 @@ void Formatter::PatternParse() {
                 parse_state = 0; // end parsing fmt
                 break;
             }
-            str_right++;
+            ++str_right;
             // last item
             if (str_right == pattern_.end() && item_str.empty()) {
                 item_str = std::string(str_left, str_right);
