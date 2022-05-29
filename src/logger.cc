@@ -3,19 +3,20 @@
 namespace mysylar {
 LogLevel::Level LogLevel::ToLevel(const std::string& level_str) {
 #define XX(L) \
-    if (#L == level_str) return LogLevel::Level::##L;
+    if (#L == level_str) return LogLevel::Level::L;
     XX(DEBUG)
     XX(INFO)
     XX(WARNING)
     XX(ERROR)
     XX(FATAL)
 #undef XX
+    return LogLevel::Level::UNKNOWN;
 }
 
-const std::string& LogLevel::ToString(LogLevel::Level level) {
+const std::string LogLevel::ToString(LogLevel::Level level) {
     switch (level) {
 #define XX(L) \
-        case LogLevel::Level::##L: return std::string(#L);
+        case LogLevel::Level::L: return std::string(#L);
         XX(DEBUG)
         XX(INFO)
         XX(WARNING)
@@ -26,11 +27,14 @@ const std::string& LogLevel::ToString(LogLevel::Level level) {
     }
 }
 
-Logger::Logger(const std::string& logger_name = "root", LogLevel::Level level) : logger_name_(logger_name), level_(level){
+Logger::Logger(const std::string& logger_name = "root", LogLevel::Level level = LogLevel::Level::DEBUG) : logger_name_(logger_name), level_(level){
 
 }
 
 void Logger::AddAppender(LogAppender::SharedPtr appender) {
+    if (!appender->GetFormatter()) {
+        appender->SetFormatter(formatter_);
+    }
     log_appenders_.push_back(appender);
 } 
 
@@ -77,14 +81,14 @@ LogEvent::LogEvent(
     const uint32_t& line,
     const uint32_t& thread_id, 
     const std::string& thread_name, 
-    const uint32_t& fiber_id) : 
+    const uint32_t& fiber_id) :
     file_name_(file_name), time_(time), elapse_(elapse), 
     line_(line), thread_id_(thread_id),
     thread_name_(thread_name), fiber_id_(fiber_id) {
 
 }
 
-Formatter::Formatter(std::string& pattern) : pattern_(pattern) {
+Formatter::Formatter(const std::string& pattern) : pattern_(pattern) {
     PatternParse();
 }
 
@@ -122,6 +126,16 @@ void StdoutLogAppender::Log(Logger::SharedPtr logger, LogLevel::Level level, Log
     }
 }
 
+
+class ContentFormatItem : public Formatter::FormatItem {
+public:
+    // In order to use map, `str` never used
+    ContentFormatItem(const std::string& str = "") {}
+    void Format(std::ostream& os, Logger::SharedPtr logger, LogLevel::Level level, LogEvent::SharedPtr event) override {
+        os << event->GetContent();
+    }
+};
+
 class FileNameFormatItem : public Formatter::FormatItem {
 public:
     // In order to use map, `str` never used
@@ -133,9 +147,9 @@ public:
 
 class TimeFormatItem : public Formatter::FormatItem {
 public:
-    TimeFormatItem(const std::string& time_format = "%Y-%m-%d %H:%M:%S") : time_format_(time_format) {
+    TimeFormatItem(const std::string& time_format) : time_format_(time_format) {
         if (time_format.empty()) {
-            time_format_ = time_format;
+            time_format_ = "%Y-%m-%d %H:%M:%S";
         }
     }
     void Format(std::ostream& os, Logger::SharedPtr logger, LogLevel::Level level, LogEvent::SharedPtr event) override {
@@ -210,7 +224,7 @@ public:
     // In order to use map, `str` never used
     LevelFormatItem(const std::string& str = "") {}
     void Format(std::ostream& os, Logger::SharedPtr logger, LogLevel::Level level, LogEvent::SharedPtr event) override {
-        os << level;
+        os << LogLevel::ToString(level);
     }
 };
 
@@ -237,57 +251,60 @@ public:
     // In order to use map, `str` never used
     TabFormatItem(const std::string& str = "") {}
     void Format(std::ostream& os, Logger::SharedPtr logger, LogLevel::Level level, LogEvent::SharedPtr event) override {
-        os << "\t"; 
+        os << "  "; 
     }
 };
 
 void Formatter::PatternParse() {
+
+    //std::cout << "-----------start parse-----------" << std::endl;
     // item: FormatItem 
     // fmt: the parameter of FormatItem's Construct 
     // type: 0 for StringItem, 1 for others
     std::vector<std::tuple<std::string /*item*/, std::string /*format*/, int /*type*/> > pattern_parsed;
     std::string content_str;
-    for (auto str_now = pattern_.begin(); str_now != pattern_.end(); ++str_now) {
+    for (auto str_left = pattern_.begin(); str_left != pattern_.end(); ) {
         // char, have not met escape
-        if (*str_now != '%') {
-            content_str += *str_now;
+        if (*str_left != '%') {
+            content_str += *str_left;
+            ++str_left;
             continue;
         }
         // met escape
-        if ((++str_now != pattern_.end()) && *str_now == '%') { // %%
-            content_str += *str_now; 
+        if ((++str_left != pattern_.end()) && *str_left == '%') { // %%
+            content_str += *str_left; 
             continue;
         }
-        auto str_end = str_now;
+        auto str_right = str_left;
         std::string item_str;
         std::string item_format_str;
         int parse_state = 0;    //0 means parsing item, 1 means parsing fmt
-        while (str_now != pattern_.end()) {
+        while (str_left != pattern_.end()) {
             // parse item
             if (parse_state == 0) {
-                if (*str_end == '%') {
-                    item_str = std::string(str_now, str_end);
-                    str_now = str_end;
+                if (!isalpha(*str_right) && *str_right != '{' && *str_right != '}') { // this item has been parsed, get to next
+                    item_str = std::string(str_left, str_right);
+                    str_left = str_right;
                     break;
                 }
-                if (*str_end == '{') {
-                    item_str = std::string(str_now, str_end);
-                    str_now = ++str_end;
+                if (*str_right == '{') {
+                    item_str = std::string(str_left, str_right);
+                    str_left = ++str_right;
                     parse_state = 1; // start parsing fmt
                 }
             }
             // parse fmt 
-            if (parse_state == 1 && *str_end == '}') {
-                item_format_str = std::string(str_now, str_end);
-                str_now = str_end + 1;
+            if (parse_state == 1 && *str_right == '}') {
+                item_format_str = std::string(str_left, str_right);
+                str_left = str_right + 1;
                 parse_state = 0; // end parsing fmt
                 break;
             }
-            str_end++;
+            str_right++;
             // last item
-            if (str_end == pattern_.end() && item_str.empty()) {
-                item_str = std::string(str_now, str_end);
-                str_now = str_end;
+            if (str_right == pattern_.end() && item_str.empty()) {
+                item_str = std::string(str_left, str_right);
+                str_left = str_right;
             }
         }
         if (parse_state == 1 || item_str.empty()) { // error item
@@ -310,10 +327,12 @@ void Formatter::PatternParse() {
 #define XX(STR, CLASS) \
     { #STR, [](const std::string& str){ return FormatItem::SharedPtr(new CLASS(str)); } }
 
+    XX(m, ContentFormatItem),
     XX(p, LevelFormatItem),
     XX(r, ElapseFormatItem),
     XX(c, LoggerFormatItem), // logger name
     XX(t, ThreadIdFormatItem),
+    XX(n, NewLineFormatItem),
     XX(d, TimeFormatItem),
     XX(f, FileNameFormatItem),
     XX(l, LineFormatItem),
@@ -336,7 +355,9 @@ void Formatter::PatternParse() {
                 format_items_.push_back(it->second(std::get<1>(i)));
             }
         }
+        //std::cout << "(" << std::get<0>(i) << ") - (" << std::get<1>(i) << ") - (" << std::get<2>(i) << ")" << std::endl;
     }
+    //std::cout << "-----------end parse-----------" << std::endl;
 }
 
 };
