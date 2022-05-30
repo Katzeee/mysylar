@@ -1,4 +1,4 @@
-#include "logger.h"
+#include "logger.hpp"
 
 namespace mysylar {
 LogLevel::Level LogLevel::ToLevel(const std::string& level_str) {
@@ -81,11 +81,18 @@ LogEvent::LogEvent(
     const uint32_t& line,
     const uint32_t& thread_id, 
     const std::string& thread_name, 
-    const uint32_t& fiber_id) :
+    const uint32_t& fiber_id,
+    std::shared_ptr<Logger> logger,
+    LogLevel::Level level) :
     file_name_(file_name), time_(time), elapse_(elapse), 
     line_(line), thread_id_(thread_id),
-    thread_name_(thread_name), fiber_id_(fiber_id) {
+    thread_name_(thread_name), fiber_id_(fiber_id),
+    logger_(logger), level_(level) {
 
+}
+
+LogEventWrap::~LogEventWrap() {
+    event_->GetLogger()->Log(event_->GetLevel(), event_); 
 }
 
 Formatter::Formatter(const std::string& pattern) : pattern_(pattern) {

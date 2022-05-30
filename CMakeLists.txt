@@ -7,19 +7,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED 17)
 set(CMAKE_GENERATOR Makefiles)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_CXX_FLAGS "$ENV{CXXFLAGS} -rdynamic -Wall -Wno-deprecated -Werror -Wno-unused-function")
-
-#aux_source_directory(src/ LIB_SRC)
-set(LIB_SRC
-    src/logger.cc
-    )
-
-add_library(sylar SHARED ${LIB_SRC})
-
-add_executable(test tests/logtest.cc)
-add_dependencies(test sylar)
-target_link_libraries(test sylar)
-
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+
+
+add_subdirectory(src)
+
+add_subdirectory(tests)
+
 
 

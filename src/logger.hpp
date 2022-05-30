@@ -13,10 +13,25 @@
 #include <list>
 #include <ctime>
 #include <cstring>
+#include "utils.hpp"
+
+
+#define LLOG(logger, level) mysylar::LogEventWrap::SharedPtr( \
+    new mysylar::LogEventWrap(mysylar::LogEvent::SharedPtr( \
+    new mysylar::LogEvent(__FILE__, time(NULL), 0, __LINE__, \
+    mysylar::GetThreadId(), mysylar::GetThreadName(), \
+    mysylar::GetFiberId(), logger, level))))->GetStringStream() 
+#define LDEBUG(logger) LLOG(logger, mysylar::LogLevel::Level::DEBUG)
+#define LINFO(logger) LLOG(logger, mysylar::LogLevel::Level::INFO)
+#define LWARNING(logger) LLOG(logger, mysylar::LogLevel::Level::WARNING)
+#define LERROR(logger) LLOG(logger, mysylar::LogLevel::Level::ERROR)
+#define LFATAL(logger) LLOG(logger, mysylar::LogLevel::Level::FATAL)
 
 namespace mysylar {
 
+
 class Logger;
+
 class LogLevel {
 public:
     enum Level {
@@ -37,7 +52,8 @@ public:
     LogEvent(const char* file_name, const uint64_t& time, 
              const uint32_t& elapse, const uint32_t& line, 
              const uint32_t& thread_id, const std::string& thread_name,
-             const uint32_t& fiber_id);
+             const uint32_t& fiber_id, std::shared_ptr<Logger> logger,
+             LogLevel::Level level);
     const char* GetFileName() const { return file_name_; }
     const uint64_t& GetTime() const { return time_; }
     const uint32_t& GetElapse() const { return elapse_; }
@@ -47,6 +63,8 @@ public:
     const uint32_t& GetFiberId() const { return fiber_id_; }
     const std::string GetContent() const { return content_.str(); }
     std::stringstream& GetStringStream() { return content_; }
+    std::shared_ptr<Logger> GetLogger() { return logger_; }
+    LogLevel::Level GetLevel() { return level_; }
 
 private:
     const char* file_name_; // file name
@@ -57,7 +75,19 @@ private:
     std::string thread_name_; // thread name
     uint32_t fiber_id_; // fiber id
     std::stringstream content_; // content
+    std::shared_ptr<Logger> logger_;
+    LogLevel::Level level_;
 
+};
+
+class LogEventWrap {
+public:
+    typedef std::shared_ptr<LogEventWrap> SharedPtr;
+    LogEventWrap(LogEvent::SharedPtr event) : event_(event) {}
+    ~LogEventWrap(); 
+    std::stringstream& GetStringStream() { return event_->GetStringStream(); }
+private:
+    LogEvent::SharedPtr event_;
 };
 
 
@@ -112,6 +142,7 @@ protected:
 
 ;
 class Logger : public std::enable_shared_from_this<Logger> {
+friend class LogEventWrap;
 public:
     typedef std::shared_ptr<Logger> SharedPtr;
     Logger() {}
@@ -161,6 +192,15 @@ private:
     const std::string file_name_;
     std::ofstream file_stream_;
     void Log(std::shared_ptr<Logger> logger, LogLevel::Level level, LogEvent::SharedPtr evnet) override;
+};
+
+class LoggerManager {
+public:
+
+
+private:
+
+
 };
 
 }
