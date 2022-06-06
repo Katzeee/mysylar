@@ -47,13 +47,15 @@ void Logger::DeleteAppender(LogAppender::SharedPtr appender) {
 }
 
 void Logger::Log(LogLevel::Level level, LogEvent::SharedPtr event) {
-    if (level >= level_) {
+    auto event_level = event->GetLevel();
+    if (event_level >= level_) {
         for (auto i : log_appenders_) {
-            i->Log(shared_from_this(), level, event);
+            i->Log(shared_from_this(), event_level, event);
         }
     }
 }
 
+/*
 void Logger::Debug(LogEvent::SharedPtr event) {
     Log(LogLevel::Level::DEBUG, event);
 }
@@ -73,6 +75,7 @@ void Logger::Error(LogEvent::SharedPtr event) {
 void Logger::Fatal(LogEvent::SharedPtr event) {
     Log(LogLevel::Level::FATAL, event);
 }
+*/
 
 LogEvent::LogEvent(
     const char* file_name, 
@@ -109,18 +112,22 @@ void Formatter::Format(
 }
 
 FileLogAppender::FileLogAppender(const std::string file_name) : file_name_(file_name) {
-
+    if (file_stream_.is_open()) {
+        file_stream_.close();
+    }
+    file_stream_.open(file_name_);
 }
 
 bool FileLogAppender::ReopenFile() {
     if (file_stream_.is_open()) {
         file_stream_.close();
     }
-    file_stream_.open(file_name_);
+    file_stream_.open(file_name_, std::ios_base::app);
     return file_stream_.is_open();
 }
 
 void FileLogAppender::Log(Logger::SharedPtr logger, LogLevel::Level level, LogEvent::SharedPtr event) {
+    ReopenFile();
     if (level >= level_) {
         formatter_->Format(file_stream_, logger, level, event);
     }
@@ -365,6 +372,48 @@ void Formatter::PatternParse() {
         //std::cout << "(" << std::get<0>(i) << ") - (" << std::get<1>(i) << ") - (" << std::get<2>(i) << ")" << std::endl;
     }
     //std::cout << "-----------end parse-----------" << std::endl;
+}
+
+
+bool LoggerManager::AddLogger(std::shared_ptr<Logger> logger) {
+    auto logger_name = logger->GetName();
+    if (loggers_.find(logger_name) == loggers_.end()) {
+        loggers_.insert(std::pair(logger_name, logger));
+        return true;
+    }
+    return false;
+}
+bool LoggerManager::DeleteLogger(std::shared_ptr<Logger> logger) {
+    auto logger_name = logger->GetName();
+    if (loggers_.find(logger_name) != loggers_.end()) {
+        loggers_.erase(logger_name);
+        return true;
+    }
+    return false;
+}
+bool LoggerManager::DeleteLogger(const std::string& logger_name) {
+    if (loggers_.find(logger_name) != loggers_.end()) {
+        loggers_.erase(logger_name);
+        return true;
+    }
+    return false;
+}
+void LoggerManager::ClearLoggers() {
+    loggers_.clear();
+}
+std::shared_ptr<Logger> LoggerManager::GetLogger(const std::string& logger_name) {
+    auto it = loggers_.find(logger_name);
+    if (it != loggers_.end()) {
+        return it->second; 
+    } else {
+        return root_logger_;
+    }
+}
+
+LoggerManager::LoggerManager() { 
+    root_logger_ = std::make_shared<Logger>("root", LogLevel::Level::DEBUG);
+    StdoutLogAppender::SharedPtr stdout_log_appender(new StdoutLogAppender());
+    root_logger_->AddAppender(stdout_log_appender);
 }
 
 };

@@ -14,18 +14,29 @@
 #include <ctime>
 #include <cstring>
 #include "utils.hpp"
+#include "singleton.hpp"
 
 
-#define LLOG(logger, level) mysylar::LogEventWrap::SharedPtr( \
+
+#define LLOG(logger_name, event_level) mysylar::LogEventWrap::SharedPtr( \
     new mysylar::LogEventWrap(mysylar::LogEvent::SharedPtr( \
     new mysylar::LogEvent(__FILE__, time(NULL), 0, __LINE__, \
-    mysylar::GetThreadId(), mysylar::GetThreadName(), \
-    mysylar::GetFiberId(), logger, level))))->GetStringStream() 
-#define LDEBUG(logger) LLOG(logger, mysylar::LogLevel::Level::DEBUG)
-#define LINFO(logger) LLOG(logger, mysylar::LogLevel::Level::INFO)
-#define LWARNING(logger) LLOG(logger, mysylar::LogLevel::Level::WARNING)
-#define LERROR(logger) LLOG(logger, mysylar::LogLevel::Level::ERROR)
-#define LFATAL(logger) LLOG(logger, mysylar::LogLevel::Level::FATAL)
+    mysylar::GetThreadId(), mysylar::GetThreadName(), mysylar::GetFiberId(), \
+    LoggerManager::GetInstance().GetLogger(logger_name), event_level))))->GetStringStream() 
+#define LDEBUG(logger_name) LLOG(logger_name, mysylar::LogLevel::Level::DEBUG)
+#define LINFO(logger_name) LLOG(logger_name, mysylar::LogLevel::Level::INFO)
+#define LWARNING(logger_name) LLOG(logger_name, mysylar::LogLevel::Level::WARNING)
+#define LERROR(logger_name) LLOG(logger_name, mysylar::LogLevel::Level::ERROR)
+#define LFATAL(logger_name) LLOG(logger_name, mysylar::LogLevel::Level::FATAL)
+
+#define LRDEBUG LDEBUG("root")
+#define LRINFO LINFO("root")
+#define LRWARNING LWARNING("root")
+#define LRERROR LERROR("root")
+#define LRFATAL LFATAL("root")
+
+
+
 
 namespace mysylar {
 
@@ -145,8 +156,9 @@ class Logger : public std::enable_shared_from_this<Logger> {
 friend class LogEventWrap;
 public:
     typedef std::shared_ptr<Logger> SharedPtr;
-    Logger() {}
     Logger(const std::string& logger_name, LogLevel::Level level);
+    Logger(const Logger& logger);
+    /*
     // set the event level as DEBUG and log the event
     void Debug(LogEvent::SharedPtr event);
     // set the event level as INFO and log the event
@@ -158,6 +170,9 @@ public:
     // set the event level as FATAL and log the event
     void Fatal(LogEvent::SharedPtr event);
     // add a log appender to the logger
+    */
+    // set the event level and log it
+    void Log(LogLevel::Level level, LogEvent::SharedPtr event);
     void AddAppender(LogAppender::SharedPtr appender);
     // delete a log appender to the logger
     void DeleteAppender(LogAppender::SharedPtr appender);
@@ -167,9 +182,7 @@ public:
     const std::string& GetName() { return logger_name_; }
 private:
     // default name
-    const std::string logger_name_ = "root"; 
-    // set the event level and log it
-    void Log(LogLevel::Level level, LogEvent::SharedPtr event);
+    const std::string logger_name_; 
     // default formatter
     Formatter::SharedPtr formatter_ = std::make_shared<Formatter>(); 
     // default level
@@ -187,19 +200,25 @@ private:
 class FileLogAppender : public LogAppender {
 public:
     FileLogAppender(const std::string file_name);
-    bool ReopenFile();
 private:
+    bool ReopenFile();
     const std::string file_name_;
     std::ofstream file_stream_;
     void Log(std::shared_ptr<Logger> logger, LogLevel::Level level, LogEvent::SharedPtr evnet) override;
 };
 
-class LoggerManager {
+class LoggerManager : public Singleton<LoggerManager> {
+friend class Singleton<LoggerManager>;
 public:
-
-
+    bool AddLogger(std::shared_ptr<Logger> logger);
+    bool DeleteLogger(std::shared_ptr<Logger> logger);
+    bool DeleteLogger(const std::string& logger_name);
+    void ClearLoggers();
+    std::shared_ptr<Logger> GetLogger(const std::string& logger_name);
 private:
-
+    std::shared_ptr<Logger> root_logger_;
+    std::map<std::string, std::shared_ptr<Logger> > loggers_;
+    LoggerManager();
 
 };
 
