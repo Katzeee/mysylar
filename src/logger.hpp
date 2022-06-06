@@ -22,7 +22,8 @@
     new mysylar::LogEventWrap(mysylar::LogEvent::SharedPtr( \
     new mysylar::LogEvent(__FILE__, time(NULL), 0, __LINE__, \
     mysylar::GetThreadId(), mysylar::GetThreadName(), mysylar::GetFiberId(), \
-    LoggerManager::GetInstance().GetLogger(logger_name), event_level))))->GetStringStream() 
+    mysylar::LoggerManager::GetInstance().GetLogger(logger_name), \
+    event_level))))->GetStringStream() 
 #define LDEBUG(logger_name) LLOG(logger_name, mysylar::LogLevel::Level::DEBUG)
 #define LINFO(logger_name) LLOG(logger_name, mysylar::LogLevel::Level::INFO)
 #define LWARNING(logger_name) LLOG(logger_name, mysylar::LogLevel::Level::WARNING)

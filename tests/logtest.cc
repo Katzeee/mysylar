@@ -25,7 +25,6 @@ int main() {
     Formatter::SharedPtr formatter(new Formatter("[%p]%d%T%f:%l%T%n")); //new format
     stdout_log_appender->SetFormatter(formatter); // set format
     LoggerManager::GetInstance().GetLogger("test_logger")->Log(LogLevel::DEBUG, event);
-    //test_logger->Debug(event);
-    //test_logger->Fatal(event);
+
     return 0;
 }
