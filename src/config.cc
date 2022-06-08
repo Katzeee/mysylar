@@ -16,16 +16,16 @@ void ConfigManager::LoadFromNode(
         }
     } else {
         map_node.emplace_back(std::make_pair(prefix, node));
-        // LRINFO << prefix << " : " << node;
     }
 }
 void ConfigManager::ConfigFromYaml(const YAML::Node& root_node) {
     std::list<std::pair<std::string, YAML::Node> > map_node;
     ConfigManager::LoadFromNode("", root_node, map_node);
-    LRINFO << map_node.size();
     for (auto& node : map_node) {
         if (node.second.IsScalar()) {
-            LRINFO << node.first;
+            ConfigManager::GetInstance().SetConfig(node.first, node.first, node.second.Scalar());
+        } else {
+            LRINFO << node.second.Type();
         }
     }
 }
