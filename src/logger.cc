@@ -136,7 +136,16 @@ void FileLogAppender::Log(Logger::SharedPtr logger, LogLevel::Level level, LogEv
 
 void StdoutLogAppender::Log(Logger::SharedPtr logger, LogLevel::Level level, LogEvent::SharedPtr event) {
     if (level >= level_) {
+        switch (level) {
+        case LogLevel::Level::DEBUG:
+            std::cout << "\033[1;32m"; break;
+        case LogLevel::Level::INFO:
+            std::cout << "\033[1;33m"; break;
+        default:
+            break;
+        }
         formatter_->Format(std::cout, logger, level, event);
+        std::cout << "\033[0m";
     }
 }
 

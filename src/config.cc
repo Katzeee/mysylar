@@ -21,7 +21,7 @@ void ConfigManager::ConfigFromYaml(const YAML::Node& root_node) {
     std::list<std::pair<std::string, YAML::Node> > map_node;
     ConfigManager::LoadFromNode("", root_node, map_node);
     for (auto& node : map_node) {
-        // LRDEBUG << node.first << ' ' << node.second.Type() << ' ' << node.second;
+        LRDEBUG << node.first << ' ' << node.second.Type() << ' ' << node.second;
         if (node.first.empty()) {
             continue;
         }

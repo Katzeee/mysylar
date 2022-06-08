@@ -2,7 +2,8 @@
 #include "../src/config.hpp"
 
 using namespace mysylar;
-int main() {
+
+void AddConfigs() {
     // 1. Add config
     auto int_config = ConfigManager::GetInstance().SetConfig("test.int", "system int value", (int)8080);
     auto float_config = ConfigManager::GetInstance().SetConfig("test.float", "system float value", (float)100);
@@ -33,5 +34,10 @@ int main() {
     XX(unordered_map_string_int_config)
 #undef XX
 
+}
+
+int main() {
+    auto node = YAML::LoadFile("/home/xac/mysylar/bin/config.yml");
+    ConfigManager::ConfigFromYaml(node);
 
 }
