@@ -3,6 +3,9 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
+#include <unordered_set>
+#include <list>
 #include <unordered_map>
 #include <boost/lexical_cast.hpp>
 #include <yaml-cpp/yaml.h>
@@ -50,12 +53,12 @@ template<class T>
 class StdYamlCast<std::string, std::vector<T> > {
 public:
     std::vector<T> operator()(const std::string& from) {
-        std::vector<T> vec;
+        std::vector<T> to_vector;
         YAML::Node node = YAML::Load(from);
         for (size_t it = 0; it < node.size(); it++) {
-            vec.emplace_back(StdYamlCast<std::string, T>()(node[it].Scalar()));
+            to_vector.emplace_back(StdYamlCast<std::string, T>()(node[it].Scalar()));
         }
-        return vec;
+        return to_vector;
     }
 };
 
@@ -67,12 +70,146 @@ public:
         for (const auto& it : from) {
             node.push_back(StdYamlCast<T, std::string>()(it));
         }
-        std::stringstream ss;
-        ss << node;
-        return ss.str();
+        std::stringstream to;
+        to << node;
+        return to.str();
     }
 };
 
+template<class T>
+class StdYamlCast<std::string, std::list<T> > {
+public:
+    std::list<T> operator()(const std::string& from) {
+        std::list<T> to_list;
+        YAML::Node node = YAML::Load(from);
+        for (size_t it = 0; it < node.size(); it++) {
+            to_list.emplace_back(StdYamlCast<std::string, T>()(node[it].Scalar()));
+        }
+        return to_list;
+    }
+};
+
+template<class T>
+class StdYamlCast<std::list<T>, std::string> {
+public:
+    std::string operator()(const std::list<T>& from) {
+        YAML::Node node;
+        for (const auto& it : from) {
+            node.push_back(StdYamlCast<T, std::string>()(it));
+        }
+        std::stringstream to;
+        to << node;
+        return to.str();
+    }
+};
+
+template<class T>
+class StdYamlCast<std::string, std::set<T> > {
+public:
+    std::set<T> operator()(const std::string& from) {
+        std::set<T> to_set;
+        YAML::Node node = YAML::Load(from);
+        for (size_t it = 0; it < node.size(); it++) {
+            to_set.insert(StdYamlCast<std::string, T>()(node[it].Scalar()));
+        }
+        return to_set;
+    }
+};
+
+template<class T>
+class StdYamlCast<std::set<T>, std::string> {
+public:
+    std::string operator()(const std::set<T>& from) {
+        YAML::Node node;
+        for (const auto& it : from) {
+            node.push_back(StdYamlCast<T, std::string>()(it));
+        }
+        std::stringstream to;
+        to << node;
+        return to.str();
+    }
+};
+
+template<class T>
+class StdYamlCast<std::string, std::map<std::string, T> > {
+public:
+    std::map<std::string, T> operator()(const std::string& from) {
+        std::map<std::string, T> to_map;
+        YAML::Node node = YAML::Load(from);
+        for (auto it = node.begin(); it != node.end(); it++) {
+            to_map.insert(std::make_pair(it->first.Scalar(), StdYamlCast<std::string, T>()(it->second.Scalar())));
+        }
+        return to_map;
+    }
+};
+
+template<class T>
+class StdYamlCast<std::map<std::string, T>, std::string> {
+public:
+    std::string operator()(const std::map<std::string, T>& from) {
+        YAML::Node node;
+        for (const auto& it : from) {
+            node[it.first] = YAML::Load(StdYamlCast<T, std::string>()(it.second));
+        }
+        std::stringstream to;
+        to << node;
+        return to.str();
+    }
+};
+
+template<class T>
+class StdYamlCast<std::string, std::unordered_set<T> > {
+public:
+    std::unordered_set<T> operator()(const std::string& from) {
+        std::set<T> to_set;
+        YAML::Node node = YAML::Load(from);
+        for (size_t it = 0; it < node.size(); it++) {
+            to_set.insert(StdYamlCast<std::string, T>()(node[it].Scalar()));
+        }
+        return to_set;
+    }
+};
+
+template<class T>
+class StdYamlCast<std::unordered_set<T>, std::string> {
+public:
+    std::string operator()(const std::unordered_set<T>& from) {
+        YAML::Node node;
+        for (const auto& it : from) {
+            node.push_back(StdYamlCast<T, std::string>()(it));
+        }
+        std::stringstream to;
+        to << node;
+        return to.str();
+    }
+};
+
+template<class T>
+class StdYamlCast<std::string, std::unordered_map<std::string, T> > {
+public:
+    std::unordered_map<std::string, T> operator()(const std::string& from) {
+        std::unordered_map<std::string, T> to_map;
+        YAML::Node node = YAML::Load(from);
+        for (auto it = node.begin(); it != node.end(); it++) {
+            to_map.insert(std::make_pair(it->first.Scalar(), StdYamlCast<std::string, T>()(it->second.Scalar())));
+        }
+        return to_map;
+    }
+};
+
+template<class T>
+class StdYamlCast<std::unordered_map<std::string, T>, std::string> {
+public:
+    std::string operator()(const std::unordered_map<std::string, T>& from) {
+        YAML::Node node;
+        for (const auto& it : from) {
+            node[it.first] = YAML::Load(StdYamlCast<T, std::string>()(it.second));
+        }
+        std::stringstream to;
+        to << node;
+        return to.str();
+    }
+};
 
 template<
     class T, 
@@ -146,16 +283,17 @@ public:
      * @param value config varible value
      **/
     template<class T>
-    void SetConfig(const std::string& name, 
+    typename ConfigVariable<T>::SharedPtr SetConfig(const std::string& name, 
                    const std::string& description,
                    const T& value) {
         auto config_base = SearchConfigBase(name);
-        if (!config_base) {
+        if (!config_base) { // doesn't exist
             LRINFO << "\'" << name << "\' doesn't exist, set the value to " 
                 << ConfigVariable<T>(name, description, value).GetValueString();  
-        } else {
+        } else { // already exist
             config_base->SetValueString(StdYamlCast<T, std::string>()(value));
         }
+        return std::dynamic_pointer_cast<ConfigVariable<T> >(SearchConfigBase(name));
     }
     /**
      * @brief search the config object by name
@@ -165,20 +303,7 @@ public:
      **/
     ConfigVariableBase::SharedPtr SearchConfigBase(const std::string& name) {
         auto config = configs_.find(name);
-        if (config == configs_.end()) {
-            return nullptr;
-        } else {
-            return config->second;
-        }
-    }
-    template<class T>
-    typename ConfigVariable<T>::SharedPtr SearchConfig(const std::string& name) {
-        auto config = configs_.find(name);
-        if (config == configs_.end()) {
-            return nullptr;
-        } else {
-            return std::dynamic_pointer_cast<ConfigVariable<T> >(config->second);
-        }
+        return (config == configs_.end()) ? nullptr : config->second;
     }
     /**
      * @brief Load a yaml map node, store in map_node
