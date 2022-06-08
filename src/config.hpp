@@ -8,6 +8,7 @@
 #include <yaml-cpp/yaml.h>
 #include "logger.hpp"
 #include "singleton.hpp"
+#include "utils.hpp"
 
 namespace mysylar{
 
@@ -19,6 +20,7 @@ public:
     const std::string GetDescription() const { return description_; }
     virtual const std::string GetValueString() const = 0;
     virtual void SetValueString(const std::string& value_string) = 0;
+    virtual const std::string GetTypeName() const = 0;
 protected:
     ConfigVariableBase(const std::string& name, const std::string& description)
                         : name_(name), description_(description) {}
@@ -27,11 +29,47 @@ protected:
 
 };
 
+/**
+ * @brief type cast form type F to type T, only support fundamental types
+ * @tparam F from type
+ * @tparam T to type
+ **/
 template<class F, class T>
 class StdYamlCast {
 public:
     T operator()(const F& from) {
         return boost::lexical_cast<T>(from);
+    }
+};
+
+/**
+ * @brief type cast from string to vector<T>
+ * @tparam T 
+ **/
+template<class T>
+class StdYamlCast<std::string, std::vector<T> > {
+public:
+    std::vector<T> operator()(const std::string& from) {
+        std::vector<T> vec;
+        YAML::Node node = YAML::Load(from);
+        for (size_t it = 0; it < node.size(); it++) {
+            vec.emplace_back(StdYamlCast<std::string, T>()(node[it].Scalar()));
+        }
+        return vec;
+    }
+};
+
+template<class T>
+class StdYamlCast<std::vector<T>, std::string> {
+public:
+    std::string operator()(const std::vector<T>& from) {
+        YAML::Node node;
+        for (const auto& it : from) {
+            node.push_back(StdYamlCast<T, std::string>()(it));
+        }
+        std::stringstream ss;
+        ss << node;
+        return ss.str();
     }
 };
 
@@ -44,6 +82,7 @@ class ConfigVariable : public ConfigVariableBase,
                        public std::enable_shared_from_this<ConfigVariable<T> > {
 friend class ConfigManager;
 public:
+    typedef std::shared_ptr<ConfigVariable> SharedPtr;
     /**
      * @brief Construct a new Config Variable object, it will be add into config manager automaticly
      * @param name variable name like "system.port"
@@ -54,7 +93,6 @@ public:
         const std::string& name,
         const std::string& description,
         const T& value); 
-    typedef std::shared_ptr<ConfigVariable> SharedPtr;
     /**
      * @brief Once set the new value, inform the manager
      * @param value config value
@@ -89,6 +127,9 @@ public:
             return "";
         }
     }
+    const std::string GetTypeName() const {
+        return TypeToName<T>();
+    }
 private:
     T value_; // the value of the config varible
 };
@@ -108,7 +149,13 @@ public:
     void SetConfig(const std::string& name, 
                    const std::string& description,
                    const T& value) {
-        std::make_shared<ConfigVariable<T> >(name, description, value);
+        auto config_base = SearchConfigBase(name);
+        if (!config_base) {
+            LRINFO << "\'" << name << "\' doesn't exist, set the value to " 
+                << ConfigVariable<T>(name, description, value).GetValueString();  
+        } else {
+            config_base->SetValueString(StdYamlCast<T, std::string>()(value));
+        }
     }
     /**
      * @brief search the config object by name
@@ -116,12 +163,21 @@ public:
      * @param name config varible name
      * @return ConfigVariable<T>::SharedPtr 
      **/
-    ConfigVariableBase::SharedPtr SearchConfig(const std::string& name) {
+    ConfigVariableBase::SharedPtr SearchConfigBase(const std::string& name) {
         auto config = configs_.find(name);
         if (config == configs_.end()) {
             return nullptr;
         } else {
             return config->second;
+        }
+    }
+    template<class T>
+    typename ConfigVariable<T>::SharedPtr SearchConfig(const std::string& name) {
+        auto config = configs_.find(name);
+        if (config == configs_.end()) {
+            return nullptr;
+        } else {
+            return std::dynamic_pointer_cast<ConfigVariable<T> >(config->second);
         }
     }
     /**
@@ -138,7 +194,7 @@ public:
 private:
     std::unordered_map<std::string, ConfigVariableBase::SharedPtr> configs_;
     template<class T>
-    void AddConfig(ConfigVariable<T> config) {
+    void AddConfig(const ConfigVariable<T>& config) {
         auto config_ptr = std::make_shared<ConfigVariable<T> >(config);
         auto config_base_ptr = std::dynamic_pointer_cast<ConfigVariableBase>(config_ptr);
         AddConfig(config_base_ptr);
@@ -148,12 +204,8 @@ private:
         auto config_exist = configs_.find(name);
         if (config_exist == configs_.end()) { // config doesn't exist
             configs_.insert(std::make_pair(name, config_base));
-            LRINFO << "name: " << name << " doesn't exist, set the value to " 
-                << config_base->GetValueString();  
         } else { // config exists
             configs_[name] = config_base;
-            LRINFO << "name: " << name << " exist, change the value to " 
-                << config_base->GetValueString();  
         }
         configs_.insert(std::make_pair(name, config_base));
     }
@@ -171,7 +223,10 @@ ConfigVariable<T, ToValue, ToString>::ConfigVariable(
 
 template<class T, class ToValue, class ToString>
 void ConfigVariable<T, ToValue, ToString>::SetValue(const T& value) { 
+    auto old_value_string = GetValueString();
     value_ = value; 
+    LRINFO << "\'" << name_ << "\' exist, change the value from " << 
+        old_value_string << " to " << GetValueString();
     ConfigManager::GetInstance().AddConfig(*this);
 }
 

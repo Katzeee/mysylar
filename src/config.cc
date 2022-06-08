@@ -22,11 +22,10 @@ void ConfigManager::ConfigFromYaml(const YAML::Node& root_node) {
     std::list<std::pair<std::string, YAML::Node> > map_node;
     ConfigManager::LoadFromNode("", root_node, map_node);
     for (auto& node : map_node) {
-        if (node.second.IsScalar()) {
-            ConfigManager::GetInstance().SetConfig(node.first, node.first, node.second.Scalar());
-        } else {
-            LRINFO << node.second.Type();
-        }
+        // LRDEBUG << node.first << ' ' << node.second.Type() << ' ' << node.second;
+        std::stringstream ss;
+        ss << node.second;
+        ConfigManager::GetInstance().SetConfig(node.first, node.first, ss.str());
     }
 }
 }
