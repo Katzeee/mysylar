@@ -55,8 +55,11 @@ public:
     std::vector<T> operator()(const std::string& from) {
         std::vector<T> to_vector;
         YAML::Node node = YAML::Load(from);
+        std::stringstream context_ss;
         for (size_t it = 0; it < node.size(); it++) {
-            to_vector.emplace_back(StdYamlCast<std::string, T>()(node[it].Scalar()));
+            context_ss.str("");
+            context_ss << node[it];
+            to_vector.emplace_back(StdYamlCast<std::string, T>()(context_ss.str()));
         }
         return to_vector;
     }
@@ -82,8 +85,11 @@ public:
     std::list<T> operator()(const std::string& from) {
         std::list<T> to_list;
         YAML::Node node = YAML::Load(from);
+        std::stringstream context_ss;
         for (size_t it = 0; it < node.size(); it++) {
-            to_list.emplace_back(StdYamlCast<std::string, T>()(node[it].Scalar()));
+            context_ss.str("");
+            context_ss << node[it];
+            to_list.emplace_back(StdYamlCast<std::string, T>()(context_ss.str()));
         }
         return to_list;
     }
@@ -109,8 +115,11 @@ public:
     std::set<T> operator()(const std::string& from) {
         std::set<T> to_set;
         YAML::Node node = YAML::Load(from);
+        std::stringstream context_ss;
         for (size_t it = 0; it < node.size(); it++) {
-            to_set.insert(StdYamlCast<std::string, T>()(node[it].Scalar()));
+            context_ss.str("");
+            context_ss << node[it];
+            to_set.insert(StdYamlCast<std::string, T>()(context_ss.str()));
         }
         return to_set;
     }
@@ -166,8 +175,11 @@ public:
     std::unordered_set<T> operator()(const std::string& from) {
         std::set<T> to_set;
         YAML::Node node = YAML::Load(from);
+        std::stringstream context_ss;
         for (size_t it = 0; it < node.size(); it++) {
-            to_set.insert(StdYamlCast<std::string, T>()(node[it].Scalar()));
+            context_ss.str("");
+            context_ss << node[it];
+            to_set.insert(StdYamlCast<std::string, T>()(context_ss.str()));
         }
         return to_set;
     }
@@ -193,8 +205,11 @@ public:
     std::unordered_map<std::string, T> operator()(const std::string& from) {
         std::unordered_map<std::string, T> to_map;
         YAML::Node node = YAML::Load(from);
+        std::stringstream second_ss; // to restore the str in `it->second` which can't be easily get by call Scalar method.
         for (auto it = node.begin(); it != node.end(); it++) {
-            to_map.insert(std::make_pair(it->first.Scalar(), StdYamlCast<std::string, T>()(it->second.Scalar())));
+            second_ss.str("");
+            second_ss << it->second;
+            to_map.insert(std::make_pair(it->first.Scalar(), StdYamlCast<std::string, T>()(second_ss.str())));
         }
         return to_map;
     }
@@ -294,6 +309,13 @@ public:
             LRINFO << "\'" << name << "\' doesn't exist, set the value to " 
                 << ConfigVariable<T>(name, description, value).GetValueString();  
         } else { // already exist
+            //auto real_type = config_base->GetTypeName();
+            //auto get_type = TypeToName<T>();
+            //if (real_type != get_type) { // type doesn't match
+            //    LRERROR << "Set Config Type doesn't match! Real Type is " 
+            //        << real_type << ", but get type " << get_type;
+            //    return nullptr;
+            //}
             config_base->SetValueString(StdYamlCast<T, std::string>()(value));
         }
         return std::dynamic_pointer_cast<ConfigVariable<T> >(SearchConfigBase(name));

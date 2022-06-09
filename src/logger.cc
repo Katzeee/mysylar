@@ -141,6 +141,8 @@ void StdoutLogAppender::Log(Logger::SharedPtr logger, LogLevel::Level level, Log
             std::cout << "\033[1;32m"; break;
         case LogLevel::Level::INFO:
             std::cout << "\033[1;33m"; break;
+        case LogLevel::Level::ERROR:
+            std::cout << "\033[1;31m"; break;
         default:
             break;
         }

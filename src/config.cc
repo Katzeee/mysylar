@@ -15,7 +15,7 @@ void ConfigManager::LoadFromNode(
                 prefix + "." + it->first.Scalar();
             LoadFromNode(node_name, it->second, map_node);
         }
-    } 
+    }
 }
 void ConfigManager::ConfigFromYaml(const YAML::Node& root_node) {
     std::list<std::pair<std::string, YAML::Node> > map_node;

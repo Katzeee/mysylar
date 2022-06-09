@@ -14,10 +14,11 @@ void AddConfigs() {
     auto unordered_set_int_config = ConfigManager::GetInstance().SetConfig("test.unordered_set", "system unordered set int value", std::set<int>{30,20,20,30,40,40});
     auto unordered_map_string_int_config = ConfigManager::GetInstance().SetConfig("test.unordered_map", "system map string string value", std::map<std::string, int>{{"i",3}, {"j",4}});
     auto grade = ConfigManager::GetInstance().SetConfig("grade", "", std::map<std::string, std::vector<std::string> >());
+    auto grade_map = ConfigManager::GetInstance().SetConfig("grade_map", "", std::map<std::string, std::map<std::string, std::string> >());
     // 2. change config 
     int_config->SetValue(80);
-    ConfigManager::GetInstance().SetConfig("test.float", "system float value", (float)0.5);
-    LRINFO << float_config->GetTypeName();
+    LRINFO << ConfigManager::GetInstance().SetConfig("test.float", "system float value", (float)0.5)->GetTypeName();
+    auto xx = ConfigManager::GetInstance().SetConfig("test.float", "system float value", std::string("1.0"));
 
     // 3. load config
     auto node = YAML::LoadFile("/home/xac/mysylar/bin/config.yml");
@@ -38,12 +39,50 @@ void AddConfigs() {
 
 }
 
+struct Person {
+    std::string name;
+    int age;
+    bool operator==(const struct Person& person) const {
+        return name == person.name && age == person.age;
+    }
+};
 
+namespace mysylar {
+template<>
+class StdYamlCast<std::string, Person> {
+public:
+    Person operator()(const std::string& from) {
+        YAML::Node node = YAML::Load(from);
+        Person person;
+        person.name = node["name"].as<std::string>();
+        person.age = node["age"].as<int>();
+        return person;
+    }
+};
+
+template<>
+class StdYamlCast<Person, std::string> {
+public:
+    std::string operator()(const Person& from) {
+        YAML::Node node;
+        node["name"] = from.name;
+        node["age"] = from.age;
+        std::stringstream to;
+        to << node;
+        return to.str();
+    }
+};
+}
+
+
+void LoadPersonConfig() {
+    auto person_config = ConfigManager::GetInstance().SetConfig("person", "", std::vector<Person>());
+    auto node = YAML::LoadFile("/home/xac/mysylar/bin/config.yml");
+    ConfigManager::ConfigFromYaml(node);
+}
 
 int main() {
     LoggerManager::GetInstance().GetLogger("root")->SetLevel(LogLevel::Level::INFO);
     AddConfigs();
-    //auto node = YAML::LoadFile("/home/xac/mysylar/bin/config.yml");
-    //ConfigManager::ConfigFromYaml(node);
-
+    //LoadPersonConfig();
 }
