@@ -24,7 +24,11 @@ int main() {
     event->GetStringStream() << "log using event";
     Formatter::SharedPtr formatter(new Formatter("[%p]%d%T%f:%l%T%n")); //new format
     stdout_log_appender->SetFormatter(formatter); // set format
-    LoggerManager::GetInstance().GetLogger("test_logger")->Log(LogLevel::DEBUG, event);
+    LoggerManager::GetInstance().GetLogger("test_logger")->Log(event);
+
+    FLERROR("root", "it's %d", (int)10);
+    FLFATAL("root", "%s %d", "it's", (int)10);
+
 
     return 0;
 }

@@ -29,7 +29,7 @@ void ConfigManager::ConfigFromYaml(const YAML::Node& root_node) {
         ss << node.second;
         auto config_base = ConfigManager::GetInstance().SearchConfigBase(node.first);
         if (config_base)
-            config_base->SetValueString(ss.str());
+            config_base->SetValueFromString(ss.str());
     }
 }
 } // end mysylar

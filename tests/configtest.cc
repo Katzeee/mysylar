@@ -72,7 +72,57 @@ public:
         return to.str();
     }
 };
-}
+
+template<>
+class StdYamlCast<std::string, LogAppenderConfig> {
+public:
+    LogAppenderConfig operator()(const std::string& from) {
+        YAML::Node node = YAML::Load(from);
+        LogAppenderConfig log_appender_config;
+        std::stringstream to_ss;
+        log_appender_config.type = node["type"].as<int>();
+        log_appender_config.path = node["path"].as<std::string>();
+        log_appender_config.level = LogLevel::ToLevel(node["level"].as<std::string>());
+        log_appender_config.format_pattern = node["format"].as<std::string>();
+        return log_appender_config;
+    }
+};
+
+template<>
+class StdYamlCast<LogAppenderConfig, std::string> {
+public:
+    std::string operator()(const LogAppenderConfig& from) {
+        return "";
+    }
+};
+template<>
+class StdYamlCast<std::string, LoggerConfig> {
+public:
+    LoggerConfig operator()(const std::string& from) {
+        YAML::Node node = YAML::Load(from);
+        LoggerConfig logger_config;
+        logger_config.name = node["name"].as<std::string>();
+        logger_config.level = LogLevel::ToLevel(node["level"].as<std::string>());
+        logger_config.format_pattern = node["format"].as<std::string>();
+        std::stringstream ss;
+        ss << node["appenders"];
+        logger_config.appenders =
+            StdYamlCast<std::string, 
+            std::vector<LogAppenderConfig> >()(ss.str());
+        return logger_config;
+    }
+};
+
+template<>
+class StdYamlCast<LoggerConfig, std::string> {
+public:
+    std::string operator()(const LoggerConfig& from) {
+        return "";
+    }
+};
+
+} // end mysylar
+
 
 
 void LoadPersonConfig() {
@@ -81,8 +131,16 @@ void LoadPersonConfig() {
     ConfigManager::ConfigFromYaml(node);
 }
 
+void LoadLoggerConfig() {
+    auto logger_config = ConfigManager::GetInstance().SetConfig("logger", "logger config", std::vector<LoggerConfig>());
+    auto node = YAML::LoadFile("/home/xac/mysylar/bin/config.yml");
+    ConfigManager::ConfigFromYaml(node);
+}
+
+
 int main() {
     LoggerManager::GetInstance().GetLogger("root")->SetLevel(LogLevel::Level::INFO);
-    AddConfigs();
+    //AddConfigs();
     //LoadPersonConfig();
+    LoadLoggerConfig();
 }

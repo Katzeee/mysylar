@@ -46,7 +46,7 @@ void Logger::DeleteAppender(LogAppender::SharedPtr appender) {
     }
 }
 
-void Logger::Log(LogLevel::Level level, LogEvent::SharedPtr event) {
+void Logger::Log(LogEvent::SharedPtr event) {
     auto event_level = event->GetLevel();
     if (event_level >= level_) {
         for (auto i : log_appenders_) {
@@ -55,27 +55,17 @@ void Logger::Log(LogLevel::Level level, LogEvent::SharedPtr event) {
     }
 }
 
-/*
-void Logger::Debug(LogEvent::SharedPtr event) {
-    Log(LogLevel::Level::DEBUG, event);
+void LogEvent::Format(const char* format, ...) {
+    va_list valist;
+    va_start(valist, format);
+    char* buf = nullptr;
+    int len = vasprintf(&buf, format, valist);
+    if(len != -1) {
+        content_ss_ << std::string(buf, len);
+        free(buf);
+    }
+    va_end(valist);
 }
-
-void Logger::Info(LogEvent::SharedPtr event) {
-    Log(LogLevel::Level::INFO, event);
-}
-
-void Logger::Warning(LogEvent::SharedPtr event) {
-    Log(LogLevel::Level::WARNING, event);
-}
-
-void Logger::Error(LogEvent::SharedPtr event) {
-    Log(LogLevel::Level::ERROR, event);
-}
-
-void Logger::Fatal(LogEvent::SharedPtr event) {
-    Log(LogLevel::Level::FATAL, event);
-}
-*/
 
 LogEvent::LogEvent(
     const char* file_name, 
@@ -95,7 +85,7 @@ LogEvent::LogEvent(
 }
 
 LogEventWrap::~LogEventWrap() {
-    event_->GetLogger()->Log(event_->GetLevel(), event_); 
+    event_->GetLogger()->Log(event_); 
 }
 
 Formatter::Formatter(const std::string& pattern) : pattern_(pattern) {
@@ -140,9 +130,13 @@ void StdoutLogAppender::Log(Logger::SharedPtr logger, LogLevel::Level level, Log
         case LogLevel::Level::DEBUG:
             std::cout << "\033[1;32m"; break;
         case LogLevel::Level::INFO:
+            std::cout << "\033[1;36m"; break;
+        case LogLevel::Level::WARNING:
             std::cout << "\033[1;33m"; break;
         case LogLevel::Level::ERROR:
             std::cout << "\033[1;31m"; break;
+        case LogLevel::Level::FATAL:
+            std::cout << "\033[1;41m"; break;
         default:
             break;
         }
@@ -425,6 +419,7 @@ LoggerManager::LoggerManager() {
     root_logger_ = std::make_shared<Logger>("root", LogLevel::Level::DEBUG);
     StdoutLogAppender::SharedPtr stdout_log_appender(new StdoutLogAppender());
     root_logger_->AddAppender(stdout_log_appender);
+    AddLogger(root_logger_);
 }
 
 };

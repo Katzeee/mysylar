@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <list>
 #include <unordered_map>
+#include <functional>
 #include <boost/lexical_cast.hpp>
 #include <yaml-cpp/yaml.h>
 #include "logger.hpp"
@@ -21,8 +22,8 @@ public:
     virtual ~ConfigVariableBase() {}
     const std::string GetName() const { return name_; }
     const std::string GetDescription() const { return description_; }
-    virtual const std::string GetValueString() const = 0;
-    virtual void SetValueString(const std::string& value_string) = 0;
+    virtual const std::string GetValueAsString() const = 0;
+    virtual void SetValueFromString(const std::string& value_string) = 0;
     virtual const std::string GetTypeName() const = 0;
 protected:
     ConfigVariableBase(const std::string& name, const std::string& description)
@@ -239,16 +240,6 @@ friend class ConfigManager;
 public:
     typedef std::shared_ptr<ConfigVariable> SharedPtr;
     /**
-     * @brief Construct a new Config Variable object, it will be add into config manager automaticly
-     * @param name variable name like "system.port"
-     * @param description variable description
-     * @param value variable value
-     **/
-    ConfigVariable(
-        const std::string& name,
-        const std::string& description,
-        const T& value); 
-    /**
      * @brief Once set the new value, inform the manager
      * @param value config value
      **/
@@ -257,7 +248,7 @@ public:
      * @brief Set the Value from string
      * @param value_string value in string
      **/
-    void SetValueString(const std::string& value_string) override {
+    void SetValueFromString(const std::string& value_string) override {
         try {
             auto value = ToValue()(value_string);
             SetValue(value);
@@ -274,7 +265,7 @@ public:
      * @brief Get the Value as String 
      * @return const std::string 
      **/
-    const std::string GetValueString() const override { 
+    const std::string GetValueAsString() const override { 
         try {
             return ToString()(value_); 
         } catch (std::exception& e) {
@@ -285,8 +276,30 @@ public:
     const std::string GetTypeName() const {
         return TypeToName<T>();
     }
+    void AddOnChangeCallback(uint64_t cb_id, 
+        std::function<void(const T&, const T&)> callback_function) {
+        on_change_callbacks_[cb_id] = callback_function;
+    }
+    void DeleteOnChangeCallback(uint64_t cb_id) {
+        on_change_callbacks_.erase(cb_id);
+    }
+    void ClearOnChangeCallbcaks() {
+        on_change_callbacks_.clear();
+    }
 private:
+    ConfigVariable() {}
+    /**
+     * @brief Construct a new Config Variable object, it will be add into config manager automaticly
+     * @param name variable name like "system.port"
+     * @param description variable description
+     * @param value variable value
+     **/
+    ConfigVariable(
+        const std::string& name,
+        const std::string& description,
+        const T& value); 
     T value_; // the value of the config varible
+    std::map<uint64_t, std::function<void(const T&, const T&)> > on_change_callbacks_; // on change callback functions
 };
 
 class ConfigManager : public Singleton<ConfigManager> {
@@ -308,7 +321,7 @@ public:
         auto config_base = SearchConfigBase(name);
         if (!config_base) { // doesn't exist
             LRINFO << "\'" << name << "\' doesn't exist, set the value to " 
-                << ConfigVariable<T>(name, description, value).GetValueString();  
+                << ConfigVariable<T>(name, description, value).GetValueAsString();  
         } else { // already exist
             auto real_type = config_base->GetTypeName();
             auto get_type = TypeToName<T>();
@@ -317,7 +330,7 @@ public:
                     << real_type << ", but get type " << get_type;
                 return nullptr;
             }
-            config_base->SetValueString(StdYamlCast<T, std::string>()(value));
+            config_base->SetValueFromString(StdYamlCast<T, std::string>()(value));
         }
         return std::dynamic_pointer_cast<ConfigVariable<T> >(SearchConfigBase(name));
     }
@@ -375,10 +388,13 @@ ConfigVariable<T, ToValue, ToString>::ConfigVariable(
 
 template<class T, class ToValue, class ToString>
 void ConfigVariable<T, ToValue, ToString>::SetValue(const T& value) { 
-    auto old_value_string = GetValueString();
+    auto old_value_string = GetValueAsString();
+    for (auto& it : on_change_callbacks_) {
+        it.second(value_, value);
+    }
     value_ = value; 
     LRINFO << "\'" << name_ << "\' exist, change the value from " << 
-        old_value_string << " to " << GetValueString();
+        old_value_string << " to " << GetValueAsString();
     ConfigManager::GetInstance().AddConfig(*this);
 }
 

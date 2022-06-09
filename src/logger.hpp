@@ -13,6 +13,7 @@
 #include <list>
 #include <ctime>
 #include <cstring>
+#include <cstdarg>
 #include "utils.hpp"
 #include "singleton.hpp"
 
@@ -37,6 +38,28 @@
 #define LRFATAL LFATAL("root")
 
 
+#define FLLOG(logger_name, event_level, format, ...) mysylar::LogEventWrap::SharedPtr( \
+    new mysylar::LogEventWrap(mysylar::LogEvent::SharedPtr( \
+    new mysylar::LogEvent(__FILE__, time(NULL), 0, __LINE__, \
+    mysylar::GetThreadId(), mysylar::GetThreadName(), mysylar::GetFiberId(), \
+    mysylar::LoggerManager::GetInstance().GetLogger(logger_name), \
+    event_level))))->GetEvent()->Format(format, __VA_ARGS__) 
+#define FLDEBUG(logger_name, format, ...) FLLOG(logger_name, \
+    mysylar::LogLevel::Level::DEBUG, format, __VA_ARGS__)
+#define FLINFO(logger_name, format, ...) FLLOG(logger_name, \
+    mysylar::LogLevel::Level::INFO, format, __VA_ARGS__)
+#define FLWARNING(logger_name, format, ...) FLLOG(logger_name, \
+    mysylar::LogLevel::Level::WARNING, format, __VA_ARGS__)
+#define FLERROR(logger_name, format, ...) FLLOG(logger_name, \
+    mysylar::LogLevel::Level::ERROR, format, __VA_ARGS__)
+#define FLFATAL(logger_name, format, ...) FLLOG(logger_name, \
+    mysylar::LogLevel::Level::FATAL, format, __VA_ARGS__)
+
+#define FLRDEBUG(format, ...) FLDEBUG("root", format, __VA_ARGS__)
+#define FLRINFO(format, ...) FLINFO("root", format, __VA_ARGS__)
+#define FLRWARNING(format, ...) FLWARNING("root", fromat, __VA_ARGS__)
+#define FLRERROR(format, ...) FLERROR("root", format, _VA__ARGS__)
+#define FLRFATAL(format, ...) FLFATAL("root", format, _VA_ARGS__)
 
 
 namespace mysylar {
@@ -73,11 +96,11 @@ public:
     const uint32_t& GetThreadId() const { return thread_id_; }
     const std::string& GetThreadName() const { return thread_name_; }
     const uint32_t& GetFiberId() const { return fiber_id_; }
-    const std::string GetContent() const { return content_.str(); }
-    std::stringstream& GetStringStream() { return content_; }
+    const std::string GetContent() const { return content_ss_.str(); }
+    const LogLevel::Level GetLevel() const { return level_; }
     std::shared_ptr<Logger> GetLogger() { return logger_; }
-    LogLevel::Level GetLevel() { return level_; }
-
+    std::stringstream& GetStringStream() { return content_ss_; }
+    void Format(const char* format, ...);
 private:
     const char* file_name_; // file name
     uint64_t time_; // timestamp
@@ -86,7 +109,7 @@ private:
     uint32_t thread_id_; // thread id
     std::string thread_name_; // thread name
     uint32_t fiber_id_; // fiber id
-    std::stringstream content_; // content
+    std::stringstream content_ss_; // content
     std::shared_ptr<Logger> logger_;
     LogLevel::Level level_;
 
@@ -97,6 +120,7 @@ public:
     typedef std::shared_ptr<LogEventWrap> SharedPtr;
     LogEventWrap(LogEvent::SharedPtr event) : event_(event) {}
     ~LogEventWrap(); 
+    LogEvent::SharedPtr GetEvent() { return event_; }
     std::stringstream& GetStringStream() { return event_->GetStringStream(); }
 private:
     LogEvent::SharedPtr event_;
@@ -159,22 +183,8 @@ public:
     typedef std::shared_ptr<Logger> SharedPtr;
     Logger(const std::string& logger_name, LogLevel::Level level);
     Logger(const Logger& logger);
-    /*
-    // set the event level as DEBUG and log the event
-    void Debug(LogEvent::SharedPtr event);
-    // set the event level as INFO and log the event
-    void Info(LogEvent::SharedPtr event);
-    // set the event level as WARNING and log the event
-    void Warning(LogEvent::SharedPtr event);
-    // set the event level as ERROR and log the event
-    void Error(LogEvent::SharedPtr event);
-    // set the event level as FATAL and log the event
-    void Fatal(LogEvent::SharedPtr event);
-    // add a log appender to the logger
-    */
-    // set the event level and log it
-//TODO: delete the level parm, use event->level
-    void Log(LogLevel::Level level, LogEvent::SharedPtr event);
+    // log the event
+    void Log(LogEvent::SharedPtr event);
     void AddAppender(LogAppender::SharedPtr appender);
     // delete a log appender to the logger
     void DeleteAppender(LogAppender::SharedPtr appender);
@@ -225,6 +235,36 @@ private:
     LoggerManager();
 
 };
+
+struct LogAppenderConfig {
+    int type = 0;
+    std::string path;
+    std::string format_pattern;
+    LogLevel::Level level;
+
+    bool operator==(const LogAppenderConfig& log_appender_config) const {
+        return type == log_appender_config.type
+            && path == log_appender_config.path
+            && format_pattern == log_appender_config.format_pattern
+            && level == log_appender_config.level;
+    }
+};
+
+struct LoggerConfig {
+    std::string name;
+    LogLevel::Level level;
+    std::string format_pattern;
+    std::vector<LogAppenderConfig> appenders;
+
+    bool operator==(const LoggerConfig& logger_config) const {
+        return name == logger_config.name
+            && level == logger_config.level
+            && format_pattern == logger_config.format_pattern
+            && appenders == logger_config.appenders;
+    }
+    
+};
+
 
 }
 
