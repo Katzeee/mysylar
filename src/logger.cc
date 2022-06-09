@@ -1,9 +1,12 @@
 #include "logger.hpp"
+#include <iostream>
 
 namespace mysylar {
 LogLevel::Level LogLevel::ToLevel(const std::string& level_str) {
+    auto level_str_upper = const_cast<std::string&>(level_str);
+    std::transform(level_str_upper.begin(), level_str_upper.end(), level_str_upper.begin(), ::toupper); 
 #define XX(L) \
-    if (#L == level_str) return LogLevel::Level::L;
+    if (#L == level_str_upper) return LogLevel::Level::L;
     XX(DEBUG)
     XX(INFO)
     XX(WARNING)
