@@ -136,8 +136,11 @@ public:
     std::map<std::string, T> operator()(const std::string& from) {
         std::map<std::string, T> to_map;
         YAML::Node node = YAML::Load(from);
+        std::stringstream second_ss; // to restore the str in `it->second` which can't be easily get by call Scalar method.
         for (auto it = node.begin(); it != node.end(); it++) {
-            to_map.insert(std::make_pair(it->first.Scalar(), StdYamlCast<std::string, T>()(it->second.Scalar())));
+            second_ss.str("");
+            second_ss << it->second;
+            to_map.insert(std::make_pair(it->first.Scalar(), StdYamlCast<std::string, T>()(second_ss.str())));
         }
         return to_map;
     }

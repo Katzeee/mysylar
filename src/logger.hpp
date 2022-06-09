@@ -181,6 +181,7 @@ public:
     void ClearAppenders() { log_appenders_.clear(); }
     // get the logger name
     const std::string& GetName() { return logger_name_; }
+    void SetLevel(LogLevel::Level level) { level_ = level; }
 private:
     // default name
     const std::string logger_name_; 
