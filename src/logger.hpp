@@ -152,7 +152,7 @@ protected:
 };
 
 
-;
+
 class Logger : public std::enable_shared_from_this<Logger> {
 friend class LogEventWrap;
 public:
@@ -173,12 +173,14 @@ public:
     // add a log appender to the logger
     */
     // set the event level and log it
+//TODO: delete the level parm, use event->level
     void Log(LogLevel::Level level, LogEvent::SharedPtr event);
     void AddAppender(LogAppender::SharedPtr appender);
     // delete a log appender to the logger
     void DeleteAppender(LogAppender::SharedPtr appender);
     // clear all log appenders
     void ClearAppenders() { log_appenders_.clear(); }
+//TODO: get log appender by name
     // get the logger name
     const std::string& GetName() { return logger_name_; }
     void SetLevel(LogLevel::Level level) { level_ = level; }

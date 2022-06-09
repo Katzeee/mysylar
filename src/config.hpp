@@ -292,6 +292,7 @@ private:
 class ConfigManager : public Singleton<ConfigManager> {
 template<class T, class ToValue, class ToString>
 friend class ConfigVariable;
+friend class Singleton<ConfigManager>;
 public:
     /**
      * @brief Set the Config object
@@ -309,13 +310,13 @@ public:
             LRINFO << "\'" << name << "\' doesn't exist, set the value to " 
                 << ConfigVariable<T>(name, description, value).GetValueString();  
         } else { // already exist
-            //auto real_type = config_base->GetTypeName();
-            //auto get_type = TypeToName<T>();
-            //if (real_type != get_type) { // type doesn't match
-            //    LRERROR << "Set Config Type doesn't match! Real Type is " 
-            //        << real_type << ", but get type " << get_type;
-            //    return nullptr;
-            //}
+            auto real_type = config_base->GetTypeName();
+            auto get_type = TypeToName<T>();
+            if (real_type != get_type) { // type doesn't match
+                LRERROR << "Set Config Type doesn't match! Real Type is " 
+                    << real_type << ", but get type " << get_type;
+                return nullptr;
+            }
             config_base->SetValueString(StdYamlCast<T, std::string>()(value));
         }
         return std::dynamic_pointer_cast<ConfigVariable<T> >(SearchConfigBase(name));
@@ -343,6 +344,7 @@ public:
     static void ConfigFromYaml(const YAML::Node& root_node);
 private:
     std::unordered_map<std::string, ConfigVariableBase::SharedPtr> configs_;
+    ConfigManager() {}
     template<class T>
     void AddConfig(const ConfigVariable<T>& config) {
         auto config_ptr = std::make_shared<ConfigVariable<T> >(config);
